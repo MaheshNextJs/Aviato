@@ -1,5 +1,12 @@
-import React, {createContext, useState, ReactNode, useContext} from 'react';
+import React, {
+  createContext,
+  useState,
+  ReactNode,
+  useContext,
+  useEffect,
+} from 'react';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface Address {
   address: string;
@@ -29,24 +36,36 @@ export const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider: React.FC<{children: ReactNode}> = ({children}) => {
   const [users, setUsers] = useState<User[] | null>(null);
 
-  // Here I Used the dummy Api from google. It displays users and deatils
-
   const fetchUsers = async () => {
     try {
       const response = await axios.get('https://dummyjson.com/users');
-      setUsers(response.data.users);
+      const fetchedUsers = response.data.users;
+
+      await AsyncStorage.setItem('users', JSON.stringify(fetchedUsers));
+
+      setUsers(fetchedUsers);
     } catch (error) {
       console.error('Error fetching users', error);
+
+      const storedUsers = await AsyncStorage.getItem('users');
+      if (storedUsers) {
+        setUsers(JSON.parse(storedUsers));
+      }
     }
   };
 
   const addUser = (user: Omit<User, 'id'>) => {
-    setUsers(prevUsers =>
-      prevUsers
-        ? [...prevUsers, {...user, id: prevUsers.length + 1}]
-        : [{...user, id: 1}],
-    );
+    setUsers(prevUsers => {
+      const newUser = {...user, id: prevUsers ? prevUsers.length + 1 : 1};
+      const updatedUsers = prevUsers ? [...prevUsers, newUser] : [newUser];
+      AsyncStorage.setItem('users', JSON.stringify(updatedUsers));
+      return updatedUsers;
+    });
   };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   return (
     <AppContext.Provider value={{users, fetchUsers, addUser}}>

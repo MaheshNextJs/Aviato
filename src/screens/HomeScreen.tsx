@@ -30,10 +30,22 @@ const HomeScreen: React.FC<Props> = ({navigation}) => {
   const {users, fetchUsers} = context;
   const [showUsers, setShowUsers] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    const loadUsers = async () => {
+      try {
+        await fetchUsers();
+      } catch (e) {
+        setError('Failed to fetch users. Showing cached data.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUsers();
+  }, [fetchUsers]);
 
   const screenHeight = Dimensions.get('window').height;
 
@@ -66,34 +78,45 @@ const HomeScreen: React.FC<Props> = ({navigation}) => {
             users click on View Available Users
           </Text>
           <View style={tw`flex-1`}>
-            {!showUsers ? (
+            {loading ? (
+              <View style={tw`flex-1 justify-center items-center`}>
+                <Text style={tw`text-base text-gray-500`}>Loading...</Text>
+              </View>
+            ) : error ? (
+              <View style={tw`flex-1 justify-center items-center`}>
+                <Text style={tw`text-red-500`}>{error}</Text>
+                <Text style={tw`text-base text-gray-500`}>
+                  Displaying cached data.
+                </Text>
+              </View>
+            ) : !showUsers ? (
               <Image
                 source={require('../Assets/aviato.png')}
                 style={tw`w-full h-[${screenHeight * 0.5}px]`}
                 resizeMode="cover"
               />
-            ) : (
+            ) : users && users.length > 0 ? (
               <ScrollView
                 contentContainerStyle={tw`mt-4 pb-20`}
                 showsVerticalScrollIndicator={false}>
                 <Text style={tw`text-center text-red-500 pb-4`}>
                   Click on the user to see the full details of her/him
                 </Text>
-                {users ? (
-                  users.map(user => (
-                    <TouchableOpacity
-                      key={user.id}
-                      style={tw`p-2 bg-emerald-100 rounded-lg text-gray-800 mt-2`}
-                      onPress={() => navigation.navigate('UserDetail', {user})}>
-                      <Text>
-                        {user.firstName} {user.lastName}
-                      </Text>
-                    </TouchableOpacity>
-                  ))
-                ) : (
-                  <Text style={tw`text-base text-gray-500`}>Loading...</Text>
-                )}
+                {users.map(user => (
+                  <TouchableOpacity
+                    key={user.id}
+                    style={tw`p-2 bg-emerald-100 rounded-lg text-gray-800 mt-2`}
+                    onPress={() => navigation.navigate('UserDetail', {user})}>
+                    <Text>
+                      {user.firstName} {user.lastName}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </ScrollView>
+            ) : (
+              <View style={tw`flex-1 justify-center items-center`}>
+                <Text style={tw`text-base text-gray-500`}>No users found.</Text>
+              </View>
             )}
           </View>
           {showForm && <AddUserForm />}
